@@ -1,0 +1,100 @@
+<!--
+File Name: project4_start.html
+Student Name: Paul Giordano
+Description: Project using web workers for image processing
+-->
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Project 4</title>
+        <style>
+            * { font-family: Arial; }
+            div { margin: 5px; }
+        </style>
+    </head>
+    <body>
+        <div>
+            Image:
+            <select id="imagep">
+                <option value="coins.jpg">coins.jpg</option>
+                <option value="grainy.png">grainy.png</option>
+                <option value="sausalito.jpg">sausalito.jpg</option>
+                <option value="galaxy.jpg">galaxy.jpg</option>
+                <option value="nyc.jpg">nyc.jpg</option>
+            </select>
+            <button id="bLoadImage">Reset</button>
+            | # Workers: <input type="range" id="nworkers" min="1" max="8" value="1" style="height:10px;"><span id="sNWorkers">1</span>
+            | <button id="bProcess">Process</button>
+        </div>
+        <div>
+            Elapsed times: <span id="out"></span></div>
+        </div>
+        <div>
+            <canvas id="cvs"></canvas>
+        </div>
+
+        <script type="text/javascript">
+        (function() {
+            let cvs = document.getElementById("cvs");
+            let ctx = cvs.getContext('2d');
+            let workers = [];
+            let number = 1;
+            let time = 0;
+            // Load an image into an in-memory Image.
+            let img = new Image();
+            img.src = document.getElementById("imagep").value;
+
+            img.onload = function(e) {
+              // Once loaded, resize canvas to match image
+              cvs.width = img.width;
+              cvs.height = img.height;
+
+              // Draw image onto canvas
+              ctx.drawImage(img, 0, 0);
+            };
+            //Buttons
+            nworkers.onchange = function(evt){
+              document.getElementById("sNWorkers").innerHTML = document.getElementById("nworkers").value;
+            }
+            imagep.onchange = function(){
+              img.src = document.getElementById("imagep").value;
+              ctx.drawImage(img, 0, 0);
+            }
+            bLoadImage.onclick = function(ev){
+              window.location.reload();
+            }
+            //Process button
+            bProcess.onclick = function(evt){
+              number = Number(document.getElementById("nworkers").value);
+              console.log(number)
+              //strip height formula
+              let strip_height = Math.ceil(img.height / number) + 2;
+              let width = img.width;
+              let height = img.height;
+              let data = [];
+              let y = 0;
+              //Creates the correct amount of workers
+              for (let i = 0; i < number; i++) {
+                let worker = new Worker('process.js');
+                //Gets image data
+                let idata = ctx.getImageData(0, y, width, strip_height);
+                data = [idata, 0, y];
+                //Posts image data to worker
+                worker.postMessage(data);
+                //Gets the message back from worker
+                worker.onmessage = function(data) {
+                  //Puts the new image data back
+                  ctx.putImageData(data.data[0], data.data[1], data.data[2], 0, 1, data.data[0].width, (data.data[0].height-2));
+                  document.getElementById("out").innerHTML = data.data[3]/1000 + " seconds";
+                  console.log(data.data[3]);
+                  worker.terminate();
+                }
+                //Next strip
+                y += strip_height;
+              }
+            }
+        })();
+        </script>
+    </body>
+</html>
